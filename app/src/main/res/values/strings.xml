@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">LiveAnimationDemo</string>
+    <string name="test_animation_heart">测试飘心动画</string>
+    <string name="test_animation_uri">测试Uri</string>
+    <string name="text_send">发送</string>
+</resources>
