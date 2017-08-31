@@ -2,17 +2,22 @@ package com.ly.liveanimationdemo.ui;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.ly.liveanimationdemo.PictureUtils;
 import com.ly.liveanimationdemo.R;
@@ -23,6 +28,10 @@ import java.io.IOException;
 import kr.co.namee.permissiongen.PermissionFail;
 import kr.co.namee.permissiongen.PermissionGen;
 import kr.co.namee.permissiongen.PermissionSuccess;
+
+import static com.ly.liveanimationdemo.PictureUtils.getCacheFile;
+import static com.ly.liveanimationdemo.PictureUtils.getDiskCacheDir;
+import static com.ly.liveanimationdemo.PictureUtils.getImageContentUri;
 
 /**
  * Created by Shinelon on 2017/7/1.
@@ -36,11 +45,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String mPublicPhotoPath;
     private static final int REQ_GALLERY = 333;
     private static final int REQUEST_CODE_PICK_IMAGE = 222;
+    private static final int CROP_PHOTO = 444;
     public ImageView mImageView;
+    private File cacheFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        cacheFile = getCacheFile(new File(getDiskCacheDir(this)), "crop_image.jpg");
         setContentView(R.layout.activity_main_img);
         mButton1 = ((Button) findViewById(R.id.bt1));
         mButton2 = ((Button) findViewById(R.id.bt2));
@@ -143,6 +155,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 uri = Uri.parse(mPublicPhotoPath);
                 path = uri.getPath();
                 PictureUtils.galleryAddPic(mPublicPhotoPath, this);
+                startPhotoZoom(new File(path));
                 break;
             //获取相册的图片
             case REQUEST_CODE_PICK_IMAGE:
@@ -155,10 +168,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 } else {
                     path = PictureUtils.getFilePath_below19(MainActivity.this, this.uri);
                 }
+                if (!TextUtils.isEmpty(path))
+                    startPhotoZoom(new File(path));
                 break;
+            case CROP_PHOTO:
+                mImageView.setImageBitmap(BitmapFactory.decodeFile(cacheFile.getAbsolutePath()));
+                break;
+
         }
-        Log.e("----","-----"+path);
-        mImageView.setImageBitmap(PictureUtils.getSmallBitmap(path, mTargetW, mTargetH));
+        Log.e("----", "-----" + path);
+    }
+
+
+    /**
+     * 剪裁图片
+     */
+    private void startPhotoZoom(File file) {
+        Log.i("TAG", getImageContentUri(this, file) + "裁剪照片的真实地址");
+        try {
+            Intent intent = new Intent("com.android.camera.action.CROP");
+            intent.setDataAndType(getImageContentUri(this, file), "image/*");//自己使用Content Uri替换File Uri
+            intent.putExtra("crop", "true");
+            intent.putExtra("aspectX", 1);
+            intent.putExtra("aspectY", 1);
+//            intent.putExtra("outputX", 180);
+//            intent.putExtra("outputY", 180);
+            intent.putExtra("scale", true);
+            intent.putExtra("return-data", false);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(cacheFile));//定义输出的File Uri
+            intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
+            intent.putExtra("noFaceDetection", true);
+            startActivityForResult(intent, CROP_PHOTO);
+        } catch (ActivityNotFoundException e) {
+            String errorMessage = "Your device doesn't support the crop action!";
+            Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
 
